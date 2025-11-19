@@ -13,7 +13,6 @@ import {
   AlertTriangle,
   RefreshCw,
   Zap,
-  Key,
   Save
 } from 'lucide-react';
 import { Country, Option, RuleMode, GameState, PlayerRecord, RoundData } from './types';
@@ -37,31 +36,9 @@ const COUNTRY_STYLES = {
   [Country.Fire]: { bg: 'bg-fire-light', text: 'text-fire-dark', border: 'border-fire', dot: 'border-fire-dark text-fire-dark', dotActive: 'bg-fire text-white' },
 };
 
-// Helper to detect API Key safely without crashing
-const getEnvironmentApiKey = () => {
-  try {
-    // Vite Standard (Preferred for Vercel+Vite)
-    // @ts-ignore
-    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) {
-      // @ts-ignore
-      return import.meta.env.VITE_GEMINI_API_KEY;
-    }
-  } catch (e) {
-    // Ignore errors
-  }
-  return "";
-};
-
 const App: React.FC = () => {
   // --- App Mode State ---
-  const [envKey] = useState<string>(getEnvironmentApiKey());
-  const [userKey, setUserKey] = useState<string>("");
-  
-  // Effective key is User Key (priority) or Env Key
-  const apiKey = userKey || envKey;
-  
-  // Initialize useAi based on if we found a key, but allow user to toggle
-  const [useAi, setUseAi] = useState<boolean>(!!apiKey);
+  const [useAi, setUseAi] = useState<boolean>(true);
 
   // --- Game State ---
   const [populations, setPopulations] = useState<Record<Country, number>>(INITIAL_POPULATION);
@@ -95,9 +72,6 @@ const App: React.FC = () => {
   const [isPopulationModalOpen, setIsPopulationModalOpen] = useState(false);
   const [editingCountry, setEditingCountry] = useState<Country | null>(null);
   const [editingPopulationValue, setEditingPopulationValue] = useState<string>("");
-
-  // API Key Modal State
-  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
 
   // --- Computed ---
   const currentRound = rounds[currentRoundIdx];
@@ -164,9 +138,6 @@ const App: React.FC = () => {
 
     try {
       if (useAi) {
-        if (!apiKey) {
-           throw new Error("API Key 缺失。請點擊右上角的 Key 按鈕輸入，或檢查 Vercel 環境變數 VITE_GEMINI_API_KEY。");
-        }
         // Use Gemini AI
         const aiResponse = await getAiSuggestion(
           currentActions,
@@ -175,8 +146,7 @@ const App: React.FC = () => {
           remaining,
           ruleMode,
           optionsPerRound,
-          populations,
-          apiKey // Pass the user-provided or env key
+          populations
         );
 
         // Evaluate the AI's suggested move using our deterministic engine to get precise loss stats
@@ -217,7 +187,7 @@ const App: React.FC = () => {
       }
     } catch (err: any) {
       console.error(err);
-      setSuggestionError(`AI 請求失敗: ${err.message || "未知錯誤"}。請檢查 API Key。`);
+      setSuggestionError(`AI 請求失敗: ${err.message || "未知錯誤"}。請檢查 API Key 是否設置正確 (VITE_GEMINI_API_KEY)。`);
     } finally {
       setIsSuggestionLoading(false);
     }
@@ -313,15 +283,7 @@ const App: React.FC = () => {
           
           {/* Left Controls */}
           <div className="flex gap-2">
-            {/* API Key Setting Button */}
-            <button 
-              onClick={() => setIsApiKeyModalOpen(true)}
-              className={`flex flex-col items-center justify-center p-3 border rounded-lg transition-colors shadow-sm min-w-[60px] ${apiKey ? 'bg-green-50 border-green-200 text-green-700' : 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100'}`}
-              title="API Key 設定"
-            >
-              <Key size={18} />
-              <span className="text-xs font-bold mt-1">{apiKey ? 'Ready' : 'Key'}</span>
-            </button>
+            {/* API Key Button Removed as per guidelines */}
           </div>
 
           {/* Round Control */}
@@ -711,52 +673,6 @@ const App: React.FC = () => {
           </button>
         </div>
       </Modal>
-
-       {/* 5. API Key Edit Modal */}
-       <Modal
-        isOpen={isApiKeyModalOpen}
-        onClose={() => setIsApiKeyModalOpen(false)}
-        title="Gemini API Key 設定"
-      >
-        <div className="flex flex-col gap-4">
-          <p className="text-sm text-gray-500">
-            你可以在此更新你的 Google Gemini API Key。
-          </p>
-          {envKey && (
-             <div className="p-2 bg-green-50 border border-green-200 rounded text-xs text-green-700 flex items-center gap-2">
-               <Check size={14} /> 檢測到環境變數 Key (Vercel/Env)
-             </div>
-          )}
-          <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">API Key</label>
-            <div className="flex items-center border rounded-lg overflow-hidden bg-gray-50 focus-within:ring-2 ring-purple-200">
-               <div className="p-3 bg-gray-200 text-gray-500"><Key size={18}/></div>
-               <input 
-                type="password" 
-                value={userKey}
-                onChange={(e) => setUserKey(e.target.value)}
-                placeholder={envKey ? "使用環境變數中 (可覆蓋)" : "AIza..."}
-                className="w-full p-2 bg-transparent outline-none text-sm"
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <button 
-              onClick={() => setIsApiKeyModalOpen(false)}
-              className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded"
-            >
-              取消
-            </button>
-            <button 
-              onClick={() => { setIsApiKeyModalOpen(false); }}
-              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded shadow"
-            >
-              完成
-            </button>
-          </div>
-        </div>
-      </Modal>
-
     </div>
   );
 };

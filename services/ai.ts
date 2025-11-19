@@ -16,19 +16,12 @@ export const getAiSuggestion = async (
   remainingMoves: number,
   mode: RuleMode,
   optionsPerRound: 2 | 3,
-  populations: Record<Country, number>,
-  userApiKey?: string
+  populations: Record<Country, number>
 ): Promise<AiSuggestionResponse> => {
   
   try {
-    // Only use the passed apiKey. Do not access process.env here directly to avoid browser crashes.
-    const apiKey = userApiKey;
-    
-    if (!apiKey) {
-      throw new Error("API Key is missing. Please enter it via the Key button.");
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
+    // Use the API key exclusively from process.env.API_KEY (injected via vite.config.ts)
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     // Construct context for the AI
     const counts = getCounts(currentActions);
