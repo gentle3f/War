@@ -291,7 +291,7 @@ const App: React.FC = () => {
 
   // --- MAIN GAME BOARD ---
   return (
-    <div className="flex flex-col h-screen bg-gray-50 font-sans">
+    <div className="flex flex-col h-screen h-[100dvh] bg-gray-50 font-sans">
       {/* === TOP PANEL === */}
       <div className="bg-white border-b shadow-sm p-2 sm:p-4 flex-none z-10">
         
@@ -477,7 +477,7 @@ const App: React.FC = () => {
       </div>
 
       {/* === BOTTOM BAR: ACTIONS === */}
-      <div className="bg-gray-800 text-white p-4 flex-none z-20 shadow-lg">
+      <div className="bg-gray-800 text-white p-4 pb-8 sm:pb-4 flex-none z-20 shadow-lg">
         <div className="max-w-7xl mx-auto flex justify-center gap-6">
           <button 
             onClick={openSuggestionModal}
