@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   RotateCcw, 
   Plus, 
@@ -280,123 +280,127 @@ const App: React.FC = () => {
 
   // --- MAIN GAME BOARD ---
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-gray-50 font-sans">
       {/* === TOP PANEL === */}
-      <div className="bg-white border-b shadow-sm p-4 flex-none z-10">
+      <div className="bg-white border-b shadow-sm p-2 sm:p-4 flex-none z-10">
         
-        <div className="flex flex-wrap gap-4 items-start justify-between">
+        <div className="flex flex-wrap gap-2 items-center justify-between">
           
-          {/* Left Controls */}
-          <div className="flex gap-2">
-            <div className={`flex items-center gap-1 px-2 py-1 rounded border text-xs font-mono ${hasApiKey ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-100 text-gray-500'}`}>
-              {hasApiKey ? 'API KEY OK' : 'NO API KEY'}
+          <div className="flex gap-2 w-full sm:w-auto justify-between sm:justify-start">
+             {/* API Status */}
+             <div className={`flex items-center gap-1 px-2 py-1 rounded border text-[10px] sm:text-xs font-mono ${hasApiKey ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-100 text-gray-500'}`}>
+              {hasApiKey ? 'API OK' : 'NO KEY'}
             </div>
-          </div>
+             
+             {/* Round Control */}
+             <div className="bg-gray-100 px-2 py-1 rounded-lg flex items-center gap-2 shadow-inner">
+               <div className="font-bold text-gray-700 text-sm uppercase tracking-wide flex items-center gap-1">
+                 <RotateCcw size={14} /> R{currentRound.roundNumber}
+               </div>
+               <div className="flex gap-1">
+                 <button 
+                   disabled={currentRoundIdx === 0}
+                   onClick={() => setCurrentRoundIdx(curr => curr - 1)}
+                   className="px-2 py-0.5 text-xs bg-white border rounded hover:bg-gray-50 disabled:opacity-50"
+                 >&lt;</button>
+                  <button 
+                   disabled={currentRoundIdx === rounds.length - 1}
+                   onClick={() => setCurrentRoundIdx(curr => curr + 1)}
+                   className="px-2 py-0.5 text-xs bg-white border rounded hover:bg-gray-50 disabled:opacity-50"
+                 >&gt;</button>
+               </div>
+             </div>
 
-          {/* Round Control */}
-          <div className="bg-gray-100 p-3 rounded-lg flex flex-col gap-2 shadow-inner min-w-[140px]">
-            <div className="font-bold text-gray-700 text-sm uppercase tracking-wide flex items-center gap-2">
-              <RotateCcw size={16} /> Round {currentRound.roundNumber}
-            </div>
-            <div className="flex gap-2">
+             {/* Reset (Mobile) */}
               <button 
-                disabled={currentRoundIdx === 0}
-                onClick={() => setCurrentRoundIdx(curr => curr - 1)}
-                className="flex-1 px-2 py-1 text-xs bg-white border rounded hover:bg-gray-50 disabled:opacity-50"
-              >上一 Round</button>
-               <button 
-                disabled={currentRoundIdx === rounds.length - 1}
-                onClick={() => setCurrentRoundIdx(curr => curr + 1)}
-                className="flex-1 px-2 py-1 text-xs bg-white border rounded hover:bg-gray-50 disabled:opacity-50"
-              >下一 Round</button>
-            </div>
+                onClick={handleResetGame}
+                className="sm:hidden p-2 bg-red-50 text-red-600 border border-red-200 rounded-lg"
+              >
+                <RefreshCw size={16} />
+              </button>
           </div>
 
-          {/* Options Control */}
-          <div className="bg-gray-100 p-3 rounded-lg flex flex-col gap-2 items-center shadow-inner">
-            <span className="text-xs font-bold text-gray-600">選項數目</span>
-            <div className="flex items-center gap-2 bg-white rounded px-2 py-1 border">
-              <button onClick={() => setOptionsPerRound(2)} disabled={optionsPerRound===2} className="p-1 hover:bg-gray-100 rounded"><Minus size={14}/></button>
-              <span className="font-bold text-blue-600 w-4 text-center">{optionsPerRound}</span>
-              <button onClick={() => setOptionsPerRound(3)} disabled={optionsPerRound===3} className="p-1 hover:bg-gray-100 rounded"><Plus size={14}/></button>
-            </div>
-          </div>
 
-          {/* Rule Settings */}
-          <div className="bg-white border border-gray-200 p-3 rounded-lg flex flex-col gap-2 flex-1 min-w-[200px] max-w-lg shadow-sm">
-            <div className="flex justify-between items-center">
-               <span className="text-xs font-bold text-gray-500 flex items-center gap-1"><Settings size={14}/> 規則設定</span>
-               <div className="text-xs flex gap-2">
-                  <label className="flex items-center gap-1 cursor-pointer">
-                    <input type="radio" checked={ruleMode === RuleMode.MajorityEliminated} onChange={() => setRuleMode(RuleMode.MajorityEliminated)} />
-                    多數淘汰
-                  </label>
-                  <label className="flex items-center gap-1 cursor-pointer">
-                    <input type="radio" checked={ruleMode === RuleMode.MinorityEliminated} onChange={() => setRuleMode(RuleMode.MinorityEliminated)} />
-                    少數淘汰
-                  </label>
-               </div>
-            </div>
+          {/* Options & Rules Control (Scrollable on tiny screens) */}
+          <div className="flex gap-2 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
             
-            <div className="grid grid-cols-2 gap-4 mt-1">
-               <div>
-                 <label className="text-xs text-gray-500 block">每國出場人數 (n)</label>
-                 <select 
-                    value={playersPerRound} 
-                    onChange={(e) => setPlayersPerRound(Number(e.target.value))}
-                    className="w-full text-sm border rounded p-1 mt-0.5 bg-gray-50"
-                 >
-                   {[1,2,3,4,5,6,7,8,9,10].map(n => <option key={n} value={n}>{n} 人</option>)}
-                 </select>
-               </div>
-               <div>
-                 <label className="text-xs text-gray-500 block">目標 Foul (敵國)</label>
-                 <select 
-                    value={targetCountry} 
-                    onChange={(e) => setTargetCountry(e.target.value as Country)}
-                    className="w-full text-sm border rounded p-1 mt-0.5 bg-red-50 text-red-800 font-bold"
-                 >
-                   {Object.values(Country).map(c => <option key={c} value={c}>{c}國</option>)}
-                 </select>
-               </div>
+            {/* Options Count */}
+            <div className="bg-gray-100 p-2 rounded-lg flex flex-col gap-1 items-center shadow-inner min-w-[80px]">
+              <span className="text-[10px] font-bold text-gray-600">選項數</span>
+              <div className="flex items-center gap-1 bg-white rounded px-1 border">
+                <button onClick={() => setOptionsPerRound(2)} disabled={optionsPerRound===2} className="p-0.5 hover:bg-gray-100 rounded"><Minus size={12}/></button>
+                <span className="font-bold text-blue-600 w-3 text-center text-sm">{optionsPerRound}</span>
+                <button onClick={() => setOptionsPerRound(3)} disabled={optionsPerRound===3} className="p-0.5 hover:bg-gray-100 rounded"><Plus size={12}/></button>
+              </div>
             </div>
-             <div className="mt-1">
-                <label className="text-xs text-gray-500 inline-block mr-2">我是:</label>
+
+            {/* Rule Settings */}
+            <div className="bg-white border border-gray-200 p-2 rounded-lg flex flex-col gap-1 flex-1 min-w-[180px] shadow-sm">
+              <div className="flex justify-between items-center text-[10px]">
+                 <span className="font-bold text-gray-500 flex items-center gap-1"><Settings size={12}/> 規則</span>
+                 <div className="flex gap-2">
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <input type="radio" checked={ruleMode === RuleMode.MajorityEliminated} onChange={() => setRuleMode(RuleMode.MajorityEliminated)} />
+                      多數死
+                    </label>
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <input type="radio" checked={ruleMode === RuleMode.MinorityEliminated} onChange={() => setRuleMode(RuleMode.MinorityEliminated)} />
+                      少數死
+                    </label>
+                 </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2">
+                 <div>
+                   <select 
+                      value={playersPerRound} 
+                      onChange={(e) => setPlayersPerRound(Number(e.target.value))}
+                      className="w-full text-xs border rounded p-0.5 bg-gray-50"
+                   >
+                     {[1,2,3,4,5,6,7,8,9,10].map(n => <option key={n} value={n}>每國 {n} 人</option>)}
+                   </select>
+                 </div>
+                 <div>
+                   <select 
+                      value={targetCountry} 
+                      onChange={(e) => setTargetCountry(e.target.value as Country)}
+                      className="w-full text-xs border rounded p-0.5 bg-red-50 text-red-800 font-bold"
+                   >
+                     {Object.values(Country).map(c => <option key={c} value={c}>Foul {c}</option>)}
+                   </select>
+                 </div>
+              </div>
+            </div>
+
+            {/* My Country */}
+             <div className="flex flex-col justify-center bg-green-50 border border-green-200 p-2 rounded-lg min-w-[80px]">
+                <label className="text-[10px] text-gray-500 block text-center">我是</label>
                 <select 
                     value={myCountry} 
                     onChange={(e) => setMyCountry(e.target.value as Country)}
-                    className="text-xs border rounded p-0.5 bg-green-50 text-green-800 font-bold"
+                    className="text-xs border-none bg-transparent text-green-800 font-bold text-center outline-none"
                  >
                    {Object.values(Country).map(c => <option key={c} value={c}>{c}國</option>)}
                  </select>
              </div>
-          </div>
 
-           {/* Notes */}
-           <div className="flex-1 hidden xl:block">
-             <textarea 
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="備註 / 特別規則..."
-              className="w-full h-full min-h-[80px] text-xs p-2 border rounded bg-yellow-50 text-gray-700 resize-none focus:ring-2 focus:ring-yellow-400 focus:outline-none"
-             />
-           </div>
-
-           {/* Reset Button */}
+           {/* Reset Button (Desktop) */}
             <button 
               onClick={handleResetGame}
-              className="flex flex-col items-center justify-center p-3 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg transition-colors shadow-sm min-w-[60px]"
+              className="hidden sm:flex flex-col items-center justify-center p-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg transition-colors shadow-sm min-w-[50px]"
               title="重置遊戲"
             >
-              <RefreshCw size={18} />
-              <span className="text-xs font-bold mt-1">重置</span>
+              <RefreshCw size={16} />
+              <span className="text-[10px] font-bold mt-0.5">重置</span>
             </button>
+          </div>
 
         </div>
       </div>
 
       {/* === MAIN GAME BOARD === */}
-      <div className="flex-1 grid grid-cols-4 bg-white overflow-hidden">
+      {/* Changed to allow scrolling on mobile (overflow-y-auto) and stack columns (grid-cols-1) */}
+      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 bg-white overflow-y-auto">
         <CountryColumn 
           country={Country.Gold} 
           currentPopulation={populations[Country.Gold]} 
@@ -440,43 +444,43 @@ const App: React.FC = () => {
       </div>
 
       {/* === BOTTOM BAR: STATS & ACTIONS === */}
-      <div className="bg-gray-800 text-white p-4 flex-none z-20">
+      <div className="bg-gray-800 text-white p-3 flex-none z-20 shadow-lg">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           
           {/* Total Stats */}
-          <div className="flex gap-6">
+          <div className="flex gap-3 sm:gap-6">
             <div className="flex flex-col items-center">
-              <span className="text-xs text-gray-400 uppercase">Total A</span>
-              <span className="text-2xl font-bold text-yellow-400">{totalCounts[Option.A]}</span>
+              <span className="text-[10px] text-gray-400 uppercase">Total A</span>
+              <span className="text-xl sm:text-2xl font-bold text-yellow-400">{totalCounts[Option.A]}</span>
             </div>
             <div className="flex flex-col items-center">
-              <span className="text-xs text-gray-400 uppercase">Total B</span>
-              <span className="text-2xl font-bold text-blue-400">{totalCounts[Option.B]}</span>
+              <span className="text-[10px] text-gray-400 uppercase">Total B</span>
+              <span className="text-xl sm:text-2xl font-bold text-blue-400">{totalCounts[Option.B]}</span>
             </div>
             {optionsPerRound === 3 && (
               <div className="flex flex-col items-center">
-                <span className="text-xs text-gray-400 uppercase">Total C</span>
-                <span className="text-2xl font-bold text-green-400">{totalCounts[Option.C]}</span>
+                <span className="text-[10px] text-gray-400 uppercase">Total C</span>
+                <span className="text-xl sm:text-2xl font-bold text-green-400">{totalCounts[Option.C]}</span>
               </div>
             )}
           </div>
 
           {/* Main Actions */}
-          <div className="flex gap-4">
+          <div className="flex gap-2 sm:gap-4">
             <button 
               onClick={openSuggestionModal}
-              className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold shadow-lg transition-transform active:scale-95 ${useAi ? 'bg-purple-600 hover:bg-purple-500' : 'bg-blue-600 hover:bg-blue-500'}`}
+              className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-6 py-2 sm:py-3 rounded-full font-bold shadow-lg transition-transform active:scale-95 text-xs sm:text-base ${useAi ? 'bg-purple-600 hover:bg-purple-500' : 'bg-blue-600 hover:bg-blue-500'}`}
             >
-              {useAi ? <Zap size={20} /> : <BrainCircuit size={20} />}
-              {useAi ? 'Gemini 建議' : '運算建議'}
+              {useAi ? <Zap size={16} className="sm:w-5 sm:h-5" /> : <BrainCircuit size={16} className="sm:w-5 sm:h-5" />}
+              {useAi ? '建議' : '運算'}
             </button>
 
             <button 
               onClick={calculateRoundResult}
-              className="flex items-center gap-2 px-6 py-3 bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded-full font-bold shadow-lg transition-transform active:scale-95"
+              className="flex items-center gap-1 sm:gap-2 px-3 sm:px-6 py-2 sm:py-3 bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded-full font-bold shadow-lg transition-transform active:scale-95 text-xs sm:text-base"
             >
-              <Check size={20} />
-              結算 Round
+              <Check size={16} className="sm:w-5 sm:h-5" />
+              結算
             </button>
           </div>
 
@@ -493,26 +497,28 @@ const App: React.FC = () => {
       >
         <div className="flex flex-col gap-3">
           <p className="text-sm text-gray-500 mb-2">請為這個人選擇今 round 的選項：</p>
-          <button 
-            onClick={() => handleOptionSelect(Option.A)}
-            className="p-3 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 font-bold rounded flex items-center justify-center gap-2 transition-colors"
-          >
-            選項 A
-          </button>
-          <button 
-            onClick={() => handleOptionSelect(Option.B)}
-            className="p-3 bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold rounded flex items-center justify-center gap-2 transition-colors"
-          >
-            選項 B
-          </button>
-          {optionsPerRound === 3 && (
+          <div className="grid grid-cols-2 gap-3">
             <button 
-              onClick={() => handleOptionSelect(Option.C)}
-              className="p-3 bg-green-100 hover:bg-green-200 text-green-800 font-bold rounded flex items-center justify-center gap-2 transition-colors"
+              onClick={() => handleOptionSelect(Option.A)}
+              className="p-3 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 font-bold rounded flex flex-col items-center justify-center gap-1 transition-colors"
             >
-              選項 C
+              <span className="text-2xl">A</span>
             </button>
-          )}
+            <button 
+              onClick={() => handleOptionSelect(Option.B)}
+              className="p-3 bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold rounded flex flex-col items-center justify-center gap-1 transition-colors"
+            >
+              <span className="text-2xl">B</span>
+            </button>
+            {optionsPerRound === 3 && (
+              <button 
+                onClick={() => handleOptionSelect(Option.C)}
+                className="col-span-2 p-3 bg-green-100 hover:bg-green-200 text-green-800 font-bold rounded flex flex-col items-center justify-center gap-1 transition-colors"
+              >
+                <span className="text-2xl">C</span>
+              </button>
+            )}
+          </div>
         </div>
       </Modal>
 
@@ -568,7 +574,7 @@ const App: React.FC = () => {
             </div>
           ) : suggestionResult ? (
              // Result
-             <div className="animate-in slide-in-from-bottom-4 fade-in duration-300">
+             <div className="animate-in slide-in-from-bottom-4 fade-in duration-300 max-h-[60vh] overflow-y-auto">
                <div className={`${useAi ? 'bg-purple-50 border-purple-200 text-purple-900' : 'bg-blue-50 border-blue-200 text-blue-900'} border p-4 rounded-lg mb-4`}>
                  <h4 className="font-bold mb-2 flex items-center gap-2">
                    {useAi ? <Zap size={18}/> : <BrainCircuit size={18}/>} 建議分配方案：

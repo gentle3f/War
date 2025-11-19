@@ -33,13 +33,10 @@ export const CountryColumn: React.FC<CountryColumnProps> = ({
   const playedDots = actions;
 
   // Dots remaining available (Total population - Played this round)
-  // Note: In some versions, only 'n' players can play. In others, everyone plays. 
-  // The prompt implies "n" players go out, but later says "Total available dots" and "Foul reduces total".
-  // We will visually separate played vs unplayed.
   const remainingCount = Math.max(0, currentPopulation - actions.length);
 
   return (
-    <div className={`flex flex-col h-full border-r last:border-r-0 border-gray-200 ${styles.bg} bg-opacity-5`}>
+    <div className={`flex flex-col min-h-[300px] sm:h-full border-b last:border-b-0 sm:border-b-0 lg:border-r lg:last:border-r-0 border-gray-200 ${styles.bg} bg-opacity-5`}>
       {/* Header */}
       <div className={`p-3 border-b-4 ${styles.border} ${styles.bg} bg-opacity-20`}>
         <div className="flex justify-between items-center mb-1">
@@ -67,7 +64,7 @@ export const CountryColumn: React.FC<CountryColumnProps> = ({
       </div>
 
       {/* Played Zone */}
-      <div className="flex-1 p-2 flex flex-col gap-2 overflow-y-auto min-h-[150px] border-b border-dashed border-gray-300">
+      <div className="flex-1 p-2 flex flex-col gap-2 overflow-y-auto min-h-[100px] border-b border-dashed border-gray-300">
         <div className="text-xs text-gray-400 uppercase tracking-wider mb-1 text-center">已表態 ({actions.length})</div>
         <div className="flex flex-wrap content-start gap-2 justify-center">
           {playedDots.map((action) => (
@@ -83,7 +80,7 @@ export const CountryColumn: React.FC<CountryColumnProps> = ({
       </div>
 
       {/* Available Zone */}
-      <div className="flex-1 p-2 flex flex-col bg-white/50">
+      <div className="flex-1 p-2 flex flex-col bg-white/50 min-h-[100px]">
         <div className="text-xs text-gray-400 uppercase tracking-wider mb-1 text-center">未表態 ({remainingCount})</div>
         <div className="flex flex-wrap content-start gap-3 justify-center p-2">
           {Array.from({ length: remainingCount }).map((_, idx) => (
