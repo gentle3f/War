@@ -89,6 +89,17 @@ const App: React.FC = () => {
     setIsActionModalOpen(true);
   };
 
+  const handleActionRemove = (actionId: string) => {
+    if (window.confirm("確定要取消這個人的選擇嗎？")) {
+      const updatedRounds = [...rounds];
+      updatedRounds[currentRoundIdx] = {
+        ...currentRound,
+        actions: currentRound.actions.filter(a => a.id !== actionId)
+      };
+      setRounds(updatedRounds);
+    }
+  };
+
   const handlePopulationClick = (country: Country) => {
     setEditingCountry(country);
     setEditingPopulationValue(populations[country].toString());
@@ -428,6 +439,7 @@ const App: React.FC = () => {
           styles={COUNTRY_STYLES[Country.Gold]}
           onDotClick={handleDotClick}
           onPopulationClick={handlePopulationClick}
+          onActionClick={handleActionRemove}
         />
         <CountryColumn 
           country={Country.Water} 
@@ -438,6 +450,7 @@ const App: React.FC = () => {
           styles={COUNTRY_STYLES[Country.Water]}
           onDotClick={handleDotClick}
           onPopulationClick={handlePopulationClick}
+          onActionClick={handleActionRemove}
         />
         <CountryColumn 
           country={Country.Wood} 
@@ -448,6 +461,7 @@ const App: React.FC = () => {
           styles={COUNTRY_STYLES[Country.Wood]}
           onDotClick={handleDotClick}
           onPopulationClick={handlePopulationClick}
+          onActionClick={handleActionRemove}
         />
         <CountryColumn 
           country={Country.Fire} 
@@ -458,6 +472,7 @@ const App: React.FC = () => {
           styles={COUNTRY_STYLES[Country.Fire]}
           onDotClick={handleDotClick}
           onPopulationClick={handlePopulationClick}
+          onActionClick={handleActionRemove}
         />
       </div>
 

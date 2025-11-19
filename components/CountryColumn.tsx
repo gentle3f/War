@@ -10,6 +10,7 @@ interface CountryColumnProps {
   styles: { bg: string; text: string; border: string; dot: string; dotActive: string };
   onDotClick: (country: Country) => void;
   onPopulationClick: (country: Country) => void;
+  onActionClick: (actionId: string) => void;
 }
 
 export const CountryColumn: React.FC<CountryColumnProps> = ({
@@ -21,6 +22,7 @@ export const CountryColumn: React.FC<CountryColumnProps> = ({
   styles,
   onDotClick,
   onPopulationClick,
+  onActionClick,
 }) => {
   // Count current choices
   const counts = {
@@ -68,13 +70,14 @@ export const CountryColumn: React.FC<CountryColumnProps> = ({
         <div className="text-xs text-gray-400 uppercase tracking-wider mb-1 text-center">已表態 ({actions.length})</div>
         <div className="flex flex-wrap content-start gap-2 justify-center">
           {playedDots.map((action) => (
-            <div
+            <button
               key={action.id}
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold shadow-md transition-transform transform scale-100 ${styles.dotActive}`}
-              title={`已選 ${action.option}`}
+              onClick={() => onActionClick(action.id)}
+              className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold shadow-md transition-transform transform hover:scale-110 hover:opacity-90 active:scale-95 cursor-pointer ${styles.dotActive}`}
+              title={`點擊移除 (已選 ${action.option})`}
             >
               {action.option}
-            </div>
+            </button>
           ))}
         </div>
       </div>
