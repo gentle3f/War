@@ -40,35 +40,28 @@ const COUNTRY_STYLES = {
 // Helper to detect API Key safely without crashing
 const getEnvironmentApiKey = () => {
   try {
-    // 1. Vite Standard (Preferred for Vercel+Vite)
+    // Vite Standard (Preferred for Vercel+Vite)
     // @ts-ignore
-    if (import.meta && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) {
+    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) {
       // @ts-ignore
       return import.meta.env.VITE_GEMINI_API_KEY;
     }
   } catch (e) {
-    // Ignore import.meta errors
+    // Ignore errors
   }
-
-  try {
-    // 2. Safe Process Check (Legacy/Webpack)
-    if (typeof process !== 'undefined' && process.env) {
-      if (process.env.REACT_APP_GEMINI_API_KEY) return process.env.REACT_APP_GEMINI_API_KEY;
-      if (process.env.API_KEY) return process.env.API_KEY; // Note: Vercel rarely exposes this to client
-    }
-  } catch (e) {
-    // Ignore process errors
-  }
-  
   return "";
 };
 
 const App: React.FC = () => {
   // --- App Mode State ---
-  const [apiKey, setApiKey] = useState<string>(getEnvironmentApiKey());
+  const [envKey] = useState<string>(getEnvironmentApiKey());
+  const [userKey, setUserKey] = useState<string>("");
+  
+  // Effective key is User Key (priority) or Env Key
+  const apiKey = userKey || envKey;
   
   // Initialize useAi based on if we found a key, but allow user to toggle
-  const [useAi, setUseAi] = useState<boolean>(!!getEnvironmentApiKey());
+  const [useAi, setUseAi] = useState<boolean>(!!apiKey);
 
   // --- Game State ---
   const [populations, setPopulations] = useState<Record<Country, number>>(INITIAL_POPULATION);
@@ -323,11 +316,11 @@ const App: React.FC = () => {
             {/* API Key Setting Button */}
             <button 
               onClick={() => setIsApiKeyModalOpen(true)}
-              className="flex flex-col items-center justify-center p-3 bg-purple-50 hover:bg-purple-100 text-purple-600 border border-purple-200 rounded-lg transition-colors shadow-sm min-w-[60px]"
+              className={`flex flex-col items-center justify-center p-3 border rounded-lg transition-colors shadow-sm min-w-[60px] ${apiKey ? 'bg-green-50 border-green-200 text-green-700' : 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100'}`}
               title="API Key 設定"
             >
               <Key size={18} />
-              <span className="text-xs font-bold mt-1">Key</span>
+              <span className="text-xs font-bold mt-1">{apiKey ? 'Ready' : 'Key'}</span>
             </button>
           </div>
 
@@ -729,15 +722,20 @@ const App: React.FC = () => {
           <p className="text-sm text-gray-500">
             你可以在此更新你的 Google Gemini API Key。
           </p>
+          {envKey && (
+             <div className="p-2 bg-green-50 border border-green-200 rounded text-xs text-green-700 flex items-center gap-2">
+               <Check size={14} /> 檢測到環境變數 Key (Vercel/Env)
+             </div>
+          )}
           <div>
             <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">API Key</label>
             <div className="flex items-center border rounded-lg overflow-hidden bg-gray-50 focus-within:ring-2 ring-purple-200">
                <div className="p-3 bg-gray-200 text-gray-500"><Key size={18}/></div>
                <input 
                 type="password" 
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="AIza..."
+                value={userKey}
+                onChange={(e) => setUserKey(e.target.value)}
+                placeholder={envKey ? "使用環境變數中 (可覆蓋)" : "AIza..."}
                 className="w-full p-2 bg-transparent outline-none text-sm"
               />
             </div>
