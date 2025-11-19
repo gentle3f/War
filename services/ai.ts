@@ -21,7 +21,12 @@ export const getAiSuggestion = async (
   
   try {
     // Use the API key exclusively from process.env.API_KEY (injected via vite.config.ts)
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
+       throw new Error("API Key not found. Please set VITE_GEMINI_API_KEY in environment variables.");
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
     
     // Construct context for the AI
     const counts = getCounts(currentActions);

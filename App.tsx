@@ -1,21 +1,18 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
-  LayoutDashboard, 
-  Users, 
-  Settings, 
-  Play, 
   RotateCcw, 
   Plus, 
   Minus, 
-  HelpCircle,
+  Settings,
   BrainCircuit,
   Check,
   AlertTriangle,
   RefreshCw,
   Zap,
-  Save
+  Save,
+  Play
 } from 'lucide-react';
-import { Country, Option, RuleMode, GameState, PlayerRecord, RoundData } from './types';
+import { Country, Option, RuleMode, PlayerRecord, RoundData } from './types';
 import { CountryColumn } from './components/CountryColumn';
 import { Modal } from './components/Modal';
 import { calculateBestMove, getCounts, getEliminatedOptions, SuggestionResult, evaluateScenario } from './utils/calculations';
@@ -39,6 +36,14 @@ const COUNTRY_STYLES = {
 const App: React.FC = () => {
   // --- App Mode State ---
   const [useAi, setUseAi] = useState<boolean>(true);
+  const [hasApiKey, setHasApiKey] = useState<boolean>(false);
+
+  useEffect(() => {
+    // Check if API key is present
+    if (process.env.API_KEY) {
+      setHasApiKey(true);
+    }
+  }, []);
 
   // --- Game State ---
   const [populations, setPopulations] = useState<Record<Country, number>>(INITIAL_POPULATION);
@@ -187,7 +192,7 @@ const App: React.FC = () => {
       }
     } catch (err: any) {
       console.error(err);
-      setSuggestionError(`AI 請求失敗: ${err.message || "未知錯誤"}。請檢查 API Key 是否設置正確 (VITE_GEMINI_API_KEY)。`);
+      setSuggestionError(`AI 請求失敗: ${err.message || "未知錯誤"}。請檢查 API Key (VITE_GEMINI_API_KEY)。`);
     } finally {
       setIsSuggestionLoading(false);
     }
@@ -283,7 +288,9 @@ const App: React.FC = () => {
           
           {/* Left Controls */}
           <div className="flex gap-2">
-            {/* API Key Button Removed as per guidelines */}
+            <div className={`flex items-center gap-1 px-2 py-1 rounded border text-xs font-mono ${hasApiKey ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-100 text-gray-500'}`}>
+              {hasApiKey ? 'API KEY OK' : 'NO API KEY'}
+            </div>
           </div>
 
           {/* Round Control */}
