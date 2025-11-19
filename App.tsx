@@ -14,7 +14,8 @@ import {
   RefreshCw,
   Zap,
   Cpu,
-  Home
+  Home,
+  Key
 } from 'lucide-react';
 import { Country, Option, RuleMode, GameState, PlayerRecord, RoundData } from './types';
 import { CountryColumn } from './components/CountryColumn';
@@ -41,6 +42,7 @@ const App: React.FC = () => {
   // --- App Mode State ---
   const [hasStarted, setHasStarted] = useState(false);
   const [useAi, setUseAi] = useState(false);
+  const [apiKey, setApiKey] = useState("");
 
   // --- Game State ---
   const [populations, setPopulations] = useState<Record<Country, number>>(INITIAL_POPULATION);
@@ -82,6 +84,10 @@ const App: React.FC = () => {
   // --- Handlers ---
 
   const handleStartGame = (withAi: boolean) => {
+    if (withAi && !apiKey && !process.env.API_KEY) {
+      alert("請輸入 Gemini API Key 以使用 AI 功能");
+      return;
+    }
     setUseAi(withAi);
     setHasStarted(true);
   };
@@ -153,7 +159,8 @@ const App: React.FC = () => {
           remaining,
           ruleMode,
           optionsPerRound,
-          populations
+          populations,
+          apiKey // Pass the user-provided key
         );
 
         // Evaluate the AI's suggested move using our deterministic engine to get precise loss stats
@@ -192,9 +199,9 @@ const App: React.FC = () => {
           setSuggestionError("無法計算有效建議");
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setSuggestionError("AI 請求失敗，請檢查 API Key 或網絡連線。");
+      setSuggestionError(`AI 請求失敗: ${err.message || "未知錯誤"}。請檢查 API Key。`);
     } finally {
       setIsSuggestionLoading(false);
     }
@@ -328,20 +335,37 @@ const App: React.FC = () => {
               </button>
 
               {/* Option 2: Gemini AI */}
-              <button 
-                onClick={() => handleStartGame(true)}
-                className="w-full group relative flex items-center gap-4 p-4 border-2 border-purple-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all text-left"
-              >
-                <div className="bg-purple-100 p-3 rounded-lg group-hover:bg-purple-200 transition-colors">
-                  <Zap size={24} className="text-purple-600" />
+              <div className="w-full border-2 border-purple-200 rounded-xl p-4 hover:border-purple-500 hover:bg-purple-50 transition-all">
+                <div className="flex items-center gap-4 mb-3">
+                  <div className="bg-purple-100 p-3 rounded-lg">
+                    <Zap size={24} className="text-purple-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                      Gemini AI 版 <span className="text-xs bg-purple-600 text-white px-2 py-0.5 rounded-full">Pro</span>
+                    </h3>
+                    <p className="text-sm text-gray-500">使用 Google Gemini 模型分析局勢。</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                    Gemini AI 版 <span className="text-xs bg-purple-600 text-white px-2 py-0.5 rounded-full">Pro</span>
-                  </h3>
-                  <p className="text-sm text-gray-500">使用 Google Gemini 模型分析局勢。需配置 API Key。</p>
+                
+                <div className="bg-white border rounded-lg p-2 mb-3 flex items-center gap-2">
+                   <Key size={16} className="text-gray-400 ml-1"/>
+                   <input 
+                      type="password"
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
+                      placeholder="在此輸入 Gemini API Key (如無 Env)"
+                      className="flex-1 text-sm outline-none text-gray-700 placeholder-gray-400"
+                   />
                 </div>
-              </button>
+                
+                <button 
+                   onClick={() => handleStartGame(true)}
+                   className="w-full py-2 bg-purple-600 text-white rounded-lg font-bold hover:bg-purple-700 transition-colors shadow-md"
+                >
+                  開始 AI 模式
+                </button>
+              </div>
             </div>
 
             <div className="mt-8 text-xs text-gray-400 text-center">

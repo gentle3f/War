@@ -16,11 +16,19 @@ export const getAiSuggestion = async (
   remainingMoves: number,
   mode: RuleMode,
   optionsPerRound: 2 | 3,
-  populations: Record<Country, number>
+  populations: Record<Country, number>,
+  userApiKey?: string
 ): Promise<AiSuggestionResponse> => {
   
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // Use user-provided key if available, otherwise fallback to env var (if built with one)
+    const apiKey = userApiKey || process.env.API_KEY;
+    
+    if (!apiKey) {
+      throw new Error("API Key is missing. Please enter it on the start screen.");
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
     
     // Construct context for the AI
     const counts = getCounts(currentActions);
