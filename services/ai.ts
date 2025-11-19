@@ -21,11 +21,11 @@ export const getAiSuggestion = async (
 ): Promise<AiSuggestionResponse> => {
   
   try {
-    // Use user-provided key if available, otherwise fallback to env var (if built with one)
-    const apiKey = userApiKey || process.env.API_KEY;
+    // Only use the passed apiKey. Do not access process.env here directly to avoid browser crashes.
+    const apiKey = userApiKey;
     
     if (!apiKey) {
-      throw new Error("API Key is missing. Please enter it on the start screen.");
+      throw new Error("API Key is missing. Please enter it via the Key button.");
     }
 
     const ai = new GoogleGenAI({ apiKey });

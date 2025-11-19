@@ -37,17 +37,28 @@ const COUNTRY_STYLES = {
   [Country.Fire]: { bg: 'bg-fire-light', text: 'text-fire-dark', border: 'border-fire', dot: 'border-fire-dark text-fire-dark', dotActive: 'bg-fire text-white' },
 };
 
-// Helper to detect API Key from various environment variable standards (Vercel/Vite/CRA)
+// Helper to detect API Key safely without crashing
 const getEnvironmentApiKey = () => {
-  // 1. Try standard system env (Node/Webpack)
-  if (typeof process !== 'undefined' && process.env?.API_KEY) return process.env.API_KEY;
-  
-  // 2. Try Vite standard (Vercel + Vite)
-  // @ts-ignore
-  if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY) return import.meta.env.VITE_GEMINI_API_KEY;
-  
-  // 3. Try CRA standard (Vercel + Create React App)
-  if (typeof process !== 'undefined' && process.env?.REACT_APP_GEMINI_API_KEY) return process.env.REACT_APP_GEMINI_API_KEY;
+  try {
+    // 1. Vite Standard (Preferred for Vercel+Vite)
+    // @ts-ignore
+    if (import.meta && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) {
+      // @ts-ignore
+      return import.meta.env.VITE_GEMINI_API_KEY;
+    }
+  } catch (e) {
+    // Ignore import.meta errors
+  }
+
+  try {
+    // 2. Safe Process Check (Legacy/Webpack)
+    if (typeof process !== 'undefined' && process.env) {
+      if (process.env.REACT_APP_GEMINI_API_KEY) return process.env.REACT_APP_GEMINI_API_KEY;
+      if (process.env.API_KEY) return process.env.API_KEY; // Note: Vercel rarely exposes this to client
+    }
+  } catch (e) {
+    // Ignore process errors
+  }
   
   return "";
 };
@@ -161,7 +172,7 @@ const App: React.FC = () => {
     try {
       if (useAi) {
         if (!apiKey) {
-           throw new Error("API Key 缺失。請點擊右上角的 Key 按鈕輸入。");
+           throw new Error("API Key 缺失。請點擊右上角的 Key 按鈕輸入，或檢查 Vercel 環境變數 VITE_GEMINI_API_KEY。");
         }
         // Use Gemini AI
         const aiResponse = await getAiSuggestion(
