@@ -398,6 +398,24 @@ const App: React.FC = () => {
         </div>
       </div>
 
+      {/* === GLOBAL STATS BAR (REAL-TIME) === */}
+      <div className="flex justify-around items-center bg-gray-50 p-3 border-b border-gray-200 shadow-inner flex-none z-10">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-yellow-400 border-2 border-yellow-500 text-white flex items-center justify-center text-lg font-bold shadow-sm">A</div>
+          <span className="text-3xl font-black text-gray-700">{totalCounts[Option.A]}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-blue-500 border-2 border-blue-600 text-white flex items-center justify-center text-lg font-bold shadow-sm">B</div>
+          <span className="text-3xl font-black text-gray-700">{totalCounts[Option.B]}</span>
+        </div>
+        {optionsPerRound === 3 && (
+          <div className="flex items-center gap-3">
+             <div className="w-10 h-10 rounded-full bg-green-500 border-2 border-green-600 text-white flex items-center justify-center text-lg font-bold shadow-sm">C</div>
+             <span className="text-3xl font-black text-gray-700">{totalCounts[Option.C]}</span>
+          </div>
+        )}
+      </div>
+
       {/* === MAIN GAME BOARD === */}
       {/* Changed to allow scrolling on mobile (overflow-y-auto) and stack columns (grid-cols-1) */}
       <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 bg-white overflow-y-auto">
@@ -443,47 +461,24 @@ const App: React.FC = () => {
         />
       </div>
 
-      {/* === BOTTOM BAR: STATS & ACTIONS === */}
-      <div className="bg-gray-800 text-white p-3 flex-none z-20 shadow-lg">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          
-          {/* Total Stats */}
-          <div className="flex gap-3 sm:gap-6">
-            <div className="flex flex-col items-center">
-              <span className="text-[10px] text-gray-400 uppercase">Total A</span>
-              <span className="text-xl sm:text-2xl font-bold text-yellow-400">{totalCounts[Option.A]}</span>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-[10px] text-gray-400 uppercase">Total B</span>
-              <span className="text-xl sm:text-2xl font-bold text-blue-400">{totalCounts[Option.B]}</span>
-            </div>
-            {optionsPerRound === 3 && (
-              <div className="flex flex-col items-center">
-                <span className="text-[10px] text-gray-400 uppercase">Total C</span>
-                <span className="text-xl sm:text-2xl font-bold text-green-400">{totalCounts[Option.C]}</span>
-              </div>
-            )}
-          </div>
+      {/* === BOTTOM BAR: ACTIONS === */}
+      <div className="bg-gray-800 text-white p-4 flex-none z-20 shadow-lg">
+        <div className="max-w-7xl mx-auto flex justify-center gap-6">
+          <button 
+            onClick={openSuggestionModal}
+            className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold shadow-lg transition-transform active:scale-95 text-sm sm:text-base ${useAi ? 'bg-purple-600 hover:bg-purple-500' : 'bg-blue-600 hover:bg-blue-500'}`}
+          >
+            {useAi ? <Zap size={20} /> : <BrainCircuit size={20} />}
+            {useAi ? '建議' : '運算'}
+          </button>
 
-          {/* Main Actions */}
-          <div className="flex gap-2 sm:gap-4">
-            <button 
-              onClick={openSuggestionModal}
-              className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-6 py-2 sm:py-3 rounded-full font-bold shadow-lg transition-transform active:scale-95 text-xs sm:text-base ${useAi ? 'bg-purple-600 hover:bg-purple-500' : 'bg-blue-600 hover:bg-blue-500'}`}
-            >
-              {useAi ? <Zap size={16} className="sm:w-5 sm:h-5" /> : <BrainCircuit size={16} className="sm:w-5 sm:h-5" />}
-              {useAi ? '建議' : '運算'}
-            </button>
-
-            <button 
-              onClick={calculateRoundResult}
-              className="flex items-center gap-1 sm:gap-2 px-3 sm:px-6 py-2 sm:py-3 bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded-full font-bold shadow-lg transition-transform active:scale-95 text-xs sm:text-base"
-            >
-              <Check size={16} className="sm:w-5 sm:h-5" />
-              結算
-            </button>
-          </div>
-
+          <button 
+            onClick={calculateRoundResult}
+            className="flex items-center gap-2 px-6 py-3 bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded-full font-bold shadow-lg transition-transform active:scale-95 text-sm sm:text-base"
+          >
+            <Check size={20} />
+            結算
+          </button>
         </div>
       </div>
 
