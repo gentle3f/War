@@ -13,7 +13,8 @@ import {
   AlertTriangle,
   RefreshCw,
   Zap,
-  Cpu
+  Cpu,
+  Home
 } from 'lucide-react';
 import { Country, Option, RuleMode, GameState, PlayerRecord, RoundData } from './types';
 import { CountryColumn } from './components/CountryColumn';
@@ -194,8 +195,6 @@ const App: React.FC = () => {
     } catch (err) {
       console.error(err);
       setSuggestionError("AI 請求失敗，請檢查 API Key 或網絡連線。");
-      // Fallback to local calculation? 
-      // Optionally we could auto-fallback, but explicit error is better for "AI Mode".
     } finally {
       setIsSuggestionLoading(false);
     }
@@ -253,21 +252,34 @@ const App: React.FC = () => {
     setRoundEndSummary(null);
   };
 
+  // Shared reset logic
+  const resetGameState = () => {
+    setPopulations({ ...INITIAL_POPULATION });
+    setRounds([{ roundNumber: 1, actions: [], isCompleted: false }]);
+    setCurrentRoundIdx(0);
+    setNotes("");
+    
+    // Reset UI States
+    setIsActionModalOpen(false);
+    setSelectedDotCountry(null);
+    setIsSuggestionModalOpen(false);
+    setManualRemainingInput(null);
+    setSuggestionResult(null);
+    setIsRoundEndModalOpen(false);
+    setRoundEndSummary(null);
+  };
+
+  const handleGoHome = () => {
+    if (window.confirm("確定要返回主頁嗎？當前遊戲進度將會丟失。")) {
+      resetGameState();
+      setHasStarted(false);
+    }
+  };
+
   const handleResetGame = () => {
-    if (window.confirm("確定要重置整場遊戲嗎？所有數據（人數、Round）將會回復初始狀態。")) {
-      setPopulations(INITIAL_POPULATION);
-      setRounds([{ roundNumber: 1, actions: [], isCompleted: false }]);
-      setCurrentRoundIdx(0);
-      setNotes("");
-      
-      // Reset UI States
-      setIsActionModalOpen(false);
-      setSelectedDotCountry(null);
-      setIsSuggestionModalOpen(false);
-      setManualRemainingInput(null);
-      setSuggestionResult(null);
-      setIsRoundEndModalOpen(false);
-      setRoundEndSummary(null);
+    if (window.confirm("確定要重新開始遊戲嗎？所有數據將會清除（但保留當前設定）。")) {
+      resetGameState();
+      // Stays on game screen
     }
   };
 
@@ -349,6 +361,16 @@ const App: React.FC = () => {
         
         <div className="flex flex-wrap gap-4 items-start justify-between">
           
+          {/* Home Button */}
+          <button 
+              onClick={handleGoHome}
+              className="flex flex-col items-center justify-center p-3 bg-gray-100 hover:bg-gray-200 text-gray-600 border border-gray-300 rounded-lg transition-colors shadow-sm"
+              title="返回主頁"
+            >
+              <Home size={18} />
+              <span className="text-xs font-bold mt-1">主頁</span>
+            </button>
+
           {/* Round Control */}
           <div className="bg-gray-100 p-3 rounded-lg flex flex-col gap-2 shadow-inner min-w-[140px]">
             <div className="font-bold text-gray-700 text-sm uppercase tracking-wide flex items-center gap-2">
@@ -590,7 +612,7 @@ const App: React.FC = () => {
                 <ul className={`list-disc list-inside space-y-1 ${useAi ? 'text-purple-800' : 'text-blue-800'} font-medium`}>
                   {suggestionResult.a > 0 && <li>{suggestionResult.a} 人揀 <span className="bg-yellow-200 px-1 rounded text-yellow-900">A</span></li>}
                   {suggestionResult.b > 0 && <li>{suggestionResult.b} 人揀 <span className="bg-blue-200 px-1 rounded text-blue-900">B</span></li>}
-                  {suggestionResult.c > 0 && <li>{suggestionResult.c} 人揀 <span className="bg-green-200 px-1 rounded text-green-900">C</span></li>}
+                  {suggestionResult.c > 0 && optionsPerRound === 3 && <li>{suggestionResult.c} 人揀 <span className="bg-green-200 px-1 rounded text-green-900">C</span></li>}
                 </ul>
                 {suggestionResult.aiReasoning && (
                   <div className="mt-3 pt-3 border-t border-purple-200 text-sm text-purple-800 italic">

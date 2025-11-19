@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { GameState, PlayerRecord, RuleMode, Country, Option } from '../types';
 import { getCounts } from '../utils/calculations';
 
@@ -30,8 +30,12 @@ export const getAiSuggestion = async (
       return acc;
     }, {} as Record<string, Record<string, number>>);
 
+    const isTwoOptions = optionsPerRound === 2;
+    const optionText = isTwoOptions ? "A or B" : "A, B, or C";
+    const optionsList = isTwoOptions ? "A, B" : "A, B, C";
+
     const prompt = `
-      I am playing a game where countries vote A, B, (or C). 
+      I am playing a game where countries vote ${optionText}. 
       Current Rule: The ${mode === RuleMode.MajorityEliminated ? 'MAJORITY' : 'MINORITY'} group is eliminated.
       
       My Country: ${myCountry} (Total Pop: ${populations[myCountry]})
@@ -40,14 +44,30 @@ export const getAiSuggestion = async (
       Current Votes on Board:
       A: ${counts[Option.A]}
       B: ${counts[Option.B]}
-      C: ${optionsPerRound === 3 ? counts[Option.C] : 'N/A'}
+      ${!isTwoOptions ? `C: ${counts[Option.C]}` : ''}
       
       Vote Breakdown by Country:
       ${JSON.stringify(breakdown, null, 2)}
       
       I have ${remainingMoves} undecided players from my country (${myCountry}).
-      How should I distribute them (A, B, C) to MAXIMIZE damage to ${targetCountry} and MINIMIZE damage to ${myCountry}?
+      How should I distribute them (${optionsList}) to MAXIMIZE damage to ${targetCountry} and MINIMIZE damage to ${myCountry}?
+
+      ${isTwoOptions ? 'IMPORTANT: There are only 2 options (A and B). Do NOT assign any votes to C.' : ''}
     `;
+
+    // Dynamic Schema Construction
+    const properties: Record<string, Schema> = {
+      a: { type: Type.INTEGER, description: "Number of my players to vote A" },
+      b: { type: Type.INTEGER, description: "Number of my players to vote B" },
+      reasoning: { type: Type.STRING, description: "Brief explanation of the strategy" }
+    };
+
+    const requiredFields = ["a", "b", "reasoning"];
+
+    if (!isTwoOptions) {
+      properties.c = { type: Type.INTEGER, description: "Number of my players to vote C" };
+      requiredFields.push("c");
+    }
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
@@ -56,13 +76,8 @@ export const getAiSuggestion = async (
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
-          properties: {
-            a: { type: Type.INTEGER, description: "Number of my players to vote A" },
-            b: { type: Type.INTEGER, description: "Number of my players to vote B" },
-            c: { type: Type.INTEGER, description: "Number of my players to vote C" },
-            reasoning: { type: Type.STRING, description: "Brief explanation of the strategy" }
-          },
-          required: ["a", "b", "c", "reasoning"]
+          properties: properties,
+          required: requiredFields
         }
       }
     });
@@ -72,16 +87,10 @@ export const getAiSuggestion = async (
     
     const result = JSON.parse(jsonText);
     
-    // Validate consistency
-    const totalSuggested = result.a + result.b + (result.c || 0);
-    if (totalSuggested !== remainingMoves) {
-      console.warn("AI suggested move count mismatch, falling back to raw values but be careful.");
-    }
-
     return {
       a: result.a || 0,
       b: result.b || 0,
-      c: result.c || 0,
+      c: result.c || 0, // Will be undefined/0 for 2-option schema
       reasoning: result.reasoning || "AI Suggestion"
     };
 
