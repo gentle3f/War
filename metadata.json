@@ -1,0 +1,5 @@
+{
+  "name": "Minority Game Strategist",
+  "description": "A decision support tool for the Minority Game simulation, tracking population, calculating round outcomes, and providing AI-driven strategy suggestions.",
+  "requestFramePermissions": []
+}
