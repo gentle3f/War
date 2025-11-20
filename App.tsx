@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   RotateCcw, 
@@ -10,7 +11,10 @@ import {
   RefreshCw,
   Zap,
   Save,
-  Play
+  Play,
+  Trophy,
+  Swords,
+  Skull
 } from 'lucide-react';
 import { Country, Option, RuleMode, PlayerRecord, RoundData } from './types';
 import { CountryColumn } from './components/CountryColumn';
@@ -39,26 +43,38 @@ const App: React.FC = () => {
   const [hasApiKey, setHasApiKey] = useState<boolean>(false);
 
   useEffect(() => {
-    // Check if API key is present
+    // Check if API key is present via process.env.API_KEY
     if (process.env.API_KEY) {
       setHasApiKey(true);
     }
   }, []);
 
   // --- Game State ---
-  const [populations, setPopulations] = useState<Record<Country, number>>(INITIAL_POPULATION);
+  // Total Max Population (Cap)
+  const [totalPopulations, setTotalPopulations] = useState<Record<Country, number>>(INITIAL_POPULATION);
+  
+  // Active Population (Survivors in the current Bout)
+  const [activePopulations, setActivePopulations] = useState<Record<Country, number>>(INITIAL_POPULATION);
+  
+  // Scores
+  const [scores, setScores] = useState<Record<Country, number>>({
+    [Country.Gold]: 0,
+    [Country.Water]: 0,
+    [Country.Wood]: 0,
+    [Country.Fire]: 0,
+  });
+
   const [rounds, setRounds] = useState<RoundData[]>([
-    { roundNumber: 1, actions: [], isCompleted: false }
+    { roundNumber: 1, turnNumber: 1, actions: [], isCompleted: false }
   ]);
   const [currentRoundIdx, setCurrentRoundIdx] = useState(0);
   
   // Rules & Settings
   const [ruleMode, setRuleMode] = useState<RuleMode>(RuleMode.MajorityEliminated);
   const [optionsPerRound, setOptionsPerRound] = useState<2 | 3>(2);
-  const [playersPerRound, setPlayersPerRound] = useState<number>(3);
+  const [playersPerRound, setPlayersPerRound] = useState<number>(3); // Not strictly used in new logic but kept for legacy/display
   const [targetCountry, setTargetCountry] = useState<Country>(Country.Water);
   const [myCountry, setMyCountry] = useState<Country>(Country.Wood);
-  const [notes, setNotes] = useState<string>("");
 
   // UI State
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
@@ -71,7 +87,13 @@ const App: React.FC = () => {
   const [suggestionError, setSuggestionError] = useState<string | null>(null);
 
   const [isRoundEndModalOpen, setIsRoundEndModalOpen] = useState(false);
-  const [roundEndSummary, setRoundEndSummary] = useState<{eliminated: Option[], deaths: Record<Country, number>} | null>(null);
+  const [roundEndSummary, setRoundEndSummary] = useState<{
+    eliminatedOptions: Option[], 
+    deaths: Record<Country, number>,
+    survivorsTotal: number,
+    isBoutOver: boolean,
+    winners: Country[]
+  } | null>(null);
 
   // Population Edit State
   const [isPopulationModalOpen, setIsPopulationModalOpen] = useState(false);
@@ -85,6 +107,12 @@ const App: React.FC = () => {
   // --- Handlers ---
 
   const handleDotClick = (country: Country) => {
+    // Can only add action if this country still has active players remaining to act
+    const actionsCount = currentActions.filter(a => a.country === country).length;
+    if (actionsCount >= activePopulations[country]) {
+      alert(`${country}國 所有存活者已表態`);
+      return;
+    }
     setSelectedDotCountry(country);
     setIsActionModalOpen(true);
   };
@@ -102,7 +130,7 @@ const App: React.FC = () => {
 
   const handlePopulationClick = (country: Country) => {
     setEditingCountry(country);
-    setEditingPopulationValue(populations[country].toString());
+    setEditingPopulationValue(totalPopulations[country].toString());
     setIsPopulationModalOpen(true);
   };
 
@@ -110,10 +138,13 @@ const App: React.FC = () => {
     if (editingCountry && editingPopulationValue !== "") {
       const val = parseInt(editingPopulationValue, 10);
       if (!isNaN(val) && val >= 0) {
-        setPopulations({
-          ...populations,
-          [editingCountry]: val
-        });
+        // Update Total
+        setTotalPopulations(prev => ({ ...prev, [editingCountry]: val }));
+        
+        // If we are in Turn 1 of a round (fresh start), update Active too to match new cap
+        if (currentRound.turnNumber === 1) {
+           setActivePopulations(prev => ({ ...prev, [editingCountry]: val }));
+        }
       }
     }
     setIsPopulationModalOpen(false);
@@ -154,7 +185,6 @@ const App: React.FC = () => {
 
     try {
       if (useAi) {
-        // Use Gemini AI
         const aiResponse = await getAiSuggestion(
           currentActions,
           myCountry,
@@ -162,10 +192,9 @@ const App: React.FC = () => {
           remaining,
           ruleMode,
           optionsPerRound,
-          populations
+          activePopulations // Use Active, not Total for logic
         );
 
-        // Evaluate the AI's suggested move using our deterministic engine to get precise loss stats
         const baseCounts = getCounts(currentActions);
         const targetActions = currentActions.filter(a => a.country === targetCountry);
         const targetBreakdown = getCounts(targetActions);
@@ -186,7 +215,6 @@ const App: React.FC = () => {
           aiReasoning: aiResponse.reasoning
         });
       } else {
-        // Use Local Heuristic
         const result = calculateBestMove(
           currentActions,
           myCountry,
@@ -203,7 +231,7 @@ const App: React.FC = () => {
       }
     } catch (err: any) {
       console.error(err);
-      setSuggestionError(`AI 請求失敗: ${err.message || "未知錯誤"}。請檢查 API Key (VITE_GEMINI_API_KEY)。`);
+      setSuggestionError(`AI 請求失敗: ${err.message || "未知錯誤"}。`);
     } finally {
       setIsSuggestionLoading(false);
     }
@@ -211,7 +239,7 @@ const App: React.FC = () => {
 
   const calculateRoundResult = () => {
     const counts = getCounts(currentActions);
-    const eliminated = getEliminatedOptions(counts, ruleMode, optionsPerRound);
+    const eliminatedOptions = getEliminatedOptions(counts, ruleMode, optionsPerRound);
     
     const deaths: Record<Country, number> = {
       [Country.Gold]: 0,
@@ -221,39 +249,83 @@ const App: React.FC = () => {
     };
 
     currentActions.forEach(action => {
-      if (eliminated.includes(action.option)) {
+      if (eliminatedOptions.includes(action.option)) {
         deaths[action.country]++;
       }
     });
 
-    setRoundEndSummary({ eliminated, deaths });
+    // Calculate next state projection
+    let remainingTotal = 0;
+    const winners: Country[] = [];
+    
+    (Object.keys(activePopulations) as Country[]).forEach(c => {
+       const nextVal = Math.max(0, activePopulations[c] - deaths[c]);
+       remainingTotal += nextVal;
+       if (nextVal > 0) winners.push(c);
+    });
+
+    const isBoutOver = remainingTotal <= 2;
+
+    setRoundEndSummary({ 
+      eliminatedOptions, 
+      deaths, 
+      survivorsTotal: remainingTotal,
+      isBoutOver,
+      winners: isBoutOver ? winners : [] 
+    });
     setIsRoundEndModalOpen(true);
   };
 
   const confirmRoundEnd = () => {
     if (!roundEndSummary) return;
 
-    // Update populations
-    const newPopulations = { ...populations };
-    (Object.keys(newPopulations) as Country[]).forEach(c => {
-      newPopulations[c] = Math.max(0, newPopulations[c] - roundEndSummary.deaths[c]);
+    // 1. Update Active Populations (Remove deaths)
+    const nextActive = { ...activePopulations };
+    (Object.keys(nextActive) as Country[]).forEach(c => {
+      nextActive[c] = Math.max(0, nextActive[c] - roundEndSummary.deaths[c]);
     });
-    setPopulations(newPopulations);
-
-    // Close Round
+    
     const updatedRounds = [...rounds];
     updatedRounds[currentRoundIdx] = {
       ...currentRound,
       isCompleted: true,
-      statsSnapshot: newPopulations
+      statsSnapshot: nextActive
     };
 
-    // Start New Round
-    updatedRounds.push({
-      roundNumber: currentRound.roundNumber + 1,
-      actions: [],
-      isCompleted: false
-    });
+    if (roundEndSummary.isBoutOver) {
+      // --- BOUT OVER: Scoring & Reset ---
+      
+      // Add points
+      const newScores = { ...scores };
+      (Object.keys(nextActive) as Country[]).forEach(c => {
+         newScores[c] += nextActive[c]; // Add remaining survivors as points
+      });
+      setScores(newScores);
+
+      // Reset for New Main Round
+      // "Then add 1 mark per head... start new round." -> Implies reset everyone to full health
+      setActivePopulations({ ...totalPopulations }); // Reset Active to Total Cap
+
+      // Start New Round 1, Turn 1
+      updatedRounds.push({
+        roundNumber: currentRound.roundNumber + 1,
+        turnNumber: 1,
+        actions: [],
+        isCompleted: false
+      });
+
+    } else {
+      // --- CONTINUE BOUT: Next Turn ---
+      setActivePopulations(nextActive);
+      
+      // Start Same Round, Next Turn
+      updatedRounds.push({
+        roundNumber: currentRound.roundNumber,
+        turnNumber: currentRound.turnNumber + 1,
+        actions: [],
+        isCompleted: false
+      });
+    }
 
     setRounds(updatedRounds);
     setCurrentRoundIdx(currentRoundIdx + 1);
@@ -263,10 +335,16 @@ const App: React.FC = () => {
 
   // Shared reset logic
   const resetGameState = () => {
-    setPopulations({ ...INITIAL_POPULATION });
-    setRounds([{ roundNumber: 1, actions: [], isCompleted: false }]);
+    setTotalPopulations({ ...INITIAL_POPULATION });
+    setActivePopulations({ ...INITIAL_POPULATION });
+    setScores({
+      [Country.Gold]: 0,
+      [Country.Water]: 0,
+      [Country.Wood]: 0,
+      [Country.Fire]: 0,
+    });
+    setRounds([{ roundNumber: 1, turnNumber: 1, actions: [], isCompleted: false }]);
     setCurrentRoundIdx(0);
-    setNotes("");
     
     // Reset UI States
     setIsActionModalOpen(false);
@@ -279,46 +357,33 @@ const App: React.FC = () => {
   };
 
   const handleResetGame = () => {
-    if (window.confirm("確定要重新開始遊戲嗎？所有數據將會清除（但保留當前設定）。")) {
+    if (window.confirm("確定要重新開始遊戲嗎？所有分數將會歸零。")) {
       resetGameState();
     }
   };
 
   // --- Render Helpers ---
-
-  const getTotalCounts = () => getCounts(currentActions);
-  const totalCounts = getTotalCounts();
+  const totalCounts = getCounts(currentActions);
 
   // --- MAIN GAME BOARD ---
   return (
-    <div className="flex flex-col h-screen h-[100dvh] bg-gray-50 font-sans">
+    <div className="flex flex-col h-[100dvh] bg-gray-50 font-sans">
       {/* === TOP PANEL === */}
       <div className="bg-white border-b shadow-sm p-2 sm:p-4 flex-none z-10">
         
         <div className="flex flex-wrap gap-2 items-center justify-between">
           
-          <div className="flex gap-2 w-full sm:w-auto justify-between sm:justify-start">
+          <div className="flex gap-2 w-full sm:w-auto justify-between sm:justify-start items-center">
              {/* API Status */}
              <div className={`flex items-center gap-1 px-2 py-1 rounded border text-[10px] sm:text-xs font-mono ${hasApiKey ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-100 text-gray-500'}`}>
               {hasApiKey ? 'API OK' : 'NO KEY'}
             </div>
              
              {/* Round Control */}
-             <div className="bg-gray-100 px-2 py-1 rounded-lg flex items-center gap-2 shadow-inner">
-               <div className="font-bold text-gray-700 text-sm uppercase tracking-wide flex items-center gap-1">
-                 <RotateCcw size={14} /> R{currentRound.roundNumber}
-               </div>
-               <div className="flex gap-1">
-                 <button 
-                   disabled={currentRoundIdx === 0}
-                   onClick={() => setCurrentRoundIdx(curr => curr - 1)}
-                   className="px-2 py-0.5 text-xs bg-white border rounded hover:bg-gray-50 disabled:opacity-50"
-                 >&lt;</button>
-                  <button 
-                   disabled={currentRoundIdx === rounds.length - 1}
-                   onClick={() => setCurrentRoundIdx(curr => curr + 1)}
-                   className="px-2 py-0.5 text-xs bg-white border rounded hover:bg-gray-50 disabled:opacity-50"
-                 >&gt;</button>
+             <div className="bg-gray-800 text-white px-3 py-1 rounded-lg flex items-center gap-2 shadow-lg ring-1 ring-black/5">
+               <div className="font-black text-sm uppercase tracking-wide flex items-center gap-2">
+                 <Swords size={16} className="text-red-400" /> 
+                 R{currentRound.roundNumber} <span className="text-gray-400 text-[10px]">TURN {currentRound.turnNumber}</span>
                </div>
              </div>
 
@@ -332,7 +397,7 @@ const App: React.FC = () => {
           </div>
 
 
-          {/* Options & Rules Control (Scrollable on tiny screens) */}
+          {/* Options & Rules Control */}
           <div className="flex gap-2 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
             
             {/* Options Count */}
@@ -363,13 +428,8 @@ const App: React.FC = () => {
               
               <div className="grid grid-cols-2 gap-2">
                  <div>
-                   <select 
-                      value={playersPerRound} 
-                      onChange={(e) => setPlayersPerRound(Number(e.target.value))}
-                      className="w-full text-xs border rounded p-0.5 bg-gray-50"
-                   >
-                     {[1,2,3,4,5,6,7,8,9,10].map(n => <option key={n} value={n}>每國 {n} 人</option>)}
-                   </select>
+                   {/* Reusing playersPerRound variable for visual consistency or removal if deprecated */}
+                   <div className="text-[10px] text-gray-400 text-center">總人數 (點擊修改)</div>
                  </div>
                  <div>
                    <select 
@@ -428,11 +488,12 @@ const App: React.FC = () => {
       </div>
 
       {/* === MAIN GAME BOARD === */}
-      {/* Changed to allow scrolling on mobile (overflow-y-auto) and stack columns (grid-cols-1) */}
       <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 bg-white overflow-y-auto">
         <CountryColumn 
           country={Country.Gold} 
-          currentPopulation={populations[Country.Gold]} 
+          totalPopulation={totalPopulations[Country.Gold]}
+          activePopulation={activePopulations[Country.Gold]}
+          score={scores[Country.Gold]}
           actions={currentActions.filter(a => a.country === Country.Gold)}
           playersPerRound={playersPerRound}
           optionsPerRound={optionsPerRound}
@@ -443,7 +504,9 @@ const App: React.FC = () => {
         />
         <CountryColumn 
           country={Country.Water} 
-          currentPopulation={populations[Country.Water]} 
+          totalPopulation={totalPopulations[Country.Water]}
+          activePopulation={activePopulations[Country.Water]}
+          score={scores[Country.Water]}
           actions={currentActions.filter(a => a.country === Country.Water)}
           playersPerRound={playersPerRound}
           optionsPerRound={optionsPerRound}
@@ -454,7 +517,9 @@ const App: React.FC = () => {
         />
         <CountryColumn 
           country={Country.Wood} 
-          currentPopulation={populations[Country.Wood]} 
+          totalPopulation={totalPopulations[Country.Wood]}
+          activePopulation={activePopulations[Country.Wood]}
+          score={scores[Country.Wood]}
           actions={currentActions.filter(a => a.country === Country.Wood)}
           playersPerRound={playersPerRound}
           optionsPerRound={optionsPerRound}
@@ -465,7 +530,9 @@ const App: React.FC = () => {
         />
         <CountryColumn 
           country={Country.Fire} 
-          currentPopulation={populations[Country.Fire]} 
+          totalPopulation={totalPopulations[Country.Fire]}
+          activePopulation={activePopulations[Country.Fire]}
+          score={scores[Country.Fire]}
           actions={currentActions.filter(a => a.country === Country.Fire)}
           playersPerRound={playersPerRound}
           optionsPerRound={optionsPerRound}
@@ -492,7 +559,9 @@ const App: React.FC = () => {
             className="flex items-center gap-2 px-6 py-3 bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded-full font-bold shadow-lg transition-transform active:scale-95 text-sm sm:text-base"
           >
             <Check size={20} />
-            結算
+            {activePopulations[Country.Gold] + activePopulations[Country.Water] + activePopulations[Country.Wood] + activePopulations[Country.Fire] <= 2 
+             ? '結算勝者' 
+             : '下一個 Turn'}
           </button>
         </div>
       </div>
@@ -540,7 +609,7 @@ const App: React.FC = () => {
       >
         <div className="space-y-4">
           
-          {/* Mode Toggle (Only visible when waiting for input) */}
+          {/* Mode Toggle */}
           {manualRemainingInput === null && (
             <div className="flex bg-gray-100 p-1 rounded-lg mb-4">
               <button 
@@ -562,8 +631,9 @@ const App: React.FC = () => {
             // Step 1: Input
             <div>
               <p className="mb-3 font-semibold text-gray-700">
-                你 ({myCountry}國) 今 round 還有多少人未表態？
+                你 ({myCountry}國) 今 Turn 還有多少存活者未表態？
               </p>
+              {/* Calculate max remaining for user context */}
               <div className="grid grid-cols-3 gap-2">
                 {[1,2,3,4,5,6,7,8,9].map(num => (
                   <button
@@ -628,44 +698,63 @@ const App: React.FC = () => {
         </div>
       </Modal>
 
-      {/* 3. Round End Modal */}
+      {/* 3. Round End Modal (Bout Logic) */}
       <Modal
         isOpen={isRoundEndModalOpen}
         onClose={() => setIsRoundEndModalOpen(false)}
-        title={`Round ${currentRound.roundNumber} 結算`}
+        title={roundEndSummary?.isBoutOver ? "🏆 本 Round 結束，勝者誕生！" : `Round ${currentRound.roundNumber} - Turn ${currentRound.turnNumber} 結算`}
       >
         {roundEndSummary && (
           <div className="space-y-4">
             <div className="text-center mb-4">
-               <p className="text-gray-500 mb-1">被淘汰的選項</p>
+               <p className="text-gray-500 mb-1 text-sm">本 Turn 被淘汰選項</p>
                <div className="flex justify-center gap-2">
-                 {roundEndSummary.eliminated.length > 0 ? roundEndSummary.eliminated.map(opt => (
-                   <span key={opt} className="text-3xl font-black text-red-600 bg-red-100 w-12 h-12 flex items-center justify-center rounded-lg">{opt}</span>
+                 {roundEndSummary.eliminatedOptions.length > 0 ? roundEndSummary.eliminatedOptions.map(opt => (
+                   <span key={opt} className="text-2xl font-black text-red-600 bg-red-100 w-10 h-10 flex items-center justify-center rounded-lg">{opt}</span>
                  )) : (
-                   <span className="text-lg font-bold text-green-600">和平！無人被淘汰</span>
+                   <span className="text-lg font-bold text-green-600">和平！無人淘汰</span>
                  )}
                </div>
             </div>
 
-            <div className="bg-gray-50 rounded p-4">
-              <h4 className="font-bold text-gray-700 border-b pb-2 mb-2">各國損失人數</h4>
+            <div className="bg-gray-50 rounded p-4 border border-gray-200">
+              <h4 className="font-bold text-gray-700 border-b pb-2 mb-2 flex items-center gap-2"><Skull size={16}/> 本 Turn 損失</h4>
               <div className="grid grid-cols-2 gap-x-8 gap-y-2">
                 {Object.entries(roundEndSummary.deaths).map(([country, count]) => (
                   <div key={country} className="flex justify-between items-center">
                     <span className="font-semibold text-gray-600">{country}國</span>
-                    <span className={`font-bold ${(count as number) > 0 ? 'text-red-600' : 'text-gray-400'}`}>
-                      {(count as number) > 0 ? `-${count}` : '0'}
+                    <span className={`font-bold ${(count as number) > 0 ? 'text-red-600' : 'text-gray-300'}`}>
+                      {(count as number) > 0 ? `-${count}` : '-'}
                     </span>
                   </div>
                 ))}
               </div>
             </div>
+
+            {roundEndSummary.isBoutOver && (
+               <div className="bg-yellow-50 border-yellow-200 border p-4 rounded-lg text-center">
+                 <h3 className="text-yellow-800 font-black text-xl mb-2 flex items-center justify-center gap-2"><Trophy size={24}/> 勝者加分</h3>
+                 <p className="text-yellow-700 mb-2">全場剩餘 {roundEndSummary.survivorsTotal} 人</p>
+                 <div className="flex flex-wrap gap-2 justify-center">
+                    {roundEndSummary.winners.map(c => (
+                      <span key={c} className="bg-yellow-200 text-yellow-900 px-3 py-1 rounded-full font-bold">
+                        {c}國
+                      </span>
+                    ))}
+                 </div>
+                 <p className="text-xs text-gray-400 mt-3">所有國家人數將重置，準備下一 Round。</p>
+               </div>
+            )}
             
             <button 
               onClick={confirmRoundEnd}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg transition-colors flex items-center justify-center gap-2"
+              className={`w-full py-3 ${roundEndSummary.isBoutOver ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-blue-600 hover:bg-blue-700'} text-white font-bold rounded-lg shadow-lg transition-colors flex items-center justify-center gap-2`}
             >
-              確認並進入下一 Round <Play size={16} fill="currentColor"/>
+              {roundEndSummary.isBoutOver ? (
+                <>開啟新 Round (全員復活) <RotateCcw size={16} /></>
+              ) : (
+                <>進入下一個 Turn <Play size={16} fill="currentColor"/></>
+              )}
             </button>
           </div>
         )}
@@ -675,11 +764,11 @@ const App: React.FC = () => {
       <Modal
         isOpen={isPopulationModalOpen}
         onClose={() => setIsPopulationModalOpen(false)}
-        title={`修改 ${editingCountry}國 人數`}
+        title={`修改 ${editingCountry}國 總人數`}
       >
         <div className="flex flex-col gap-4">
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">當前人數</label>
+            <label className="block text-sm font-bold text-gray-700 mb-1">總人口上限 (Max Capacity)</label>
             <input 
               type="number" 
               value={editingPopulationValue}
@@ -687,6 +776,9 @@ const App: React.FC = () => {
               className="w-full border-2 border-blue-200 rounded-lg p-3 text-xl font-bold text-center focus:border-blue-500 outline-none"
               min="0"
             />
+             <p className="text-xs text-gray-500 mt-2">
+               * 修改後，若目前處於 Round 1 - Turn 1，活躍人數也會同步更新。
+             </p>
           </div>
           <button 
             onClick={savePopulation}

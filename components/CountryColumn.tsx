@@ -1,9 +1,13 @@
+
 import React from 'react';
 import { Country, Option, PlayerRecord } from '../types';
+import { Trophy, User, Users } from 'lucide-react';
 
 interface CountryColumnProps {
   country: Country;
-  currentPopulation: number;
+  totalPopulation: number;   // Max capacity
+  activePopulation: number;  // Currently alive in this bout
+  score: number;
   actions: PlayerRecord[];
   playersPerRound: number;
   optionsPerRound: 2 | 3;
@@ -15,7 +19,9 @@ interface CountryColumnProps {
 
 export const CountryColumn: React.FC<CountryColumnProps> = ({
   country,
-  currentPopulation,
+  totalPopulation,
+  activePopulation,
+  score,
   actions,
   playersPerRound,
   optionsPerRound,
@@ -34,46 +40,71 @@ export const CountryColumn: React.FC<CountryColumnProps> = ({
   // Dots already played this round
   const playedDots = actions;
 
-  // Dots remaining available (Total population - Played this round)
-  const remainingCount = Math.max(0, currentPopulation - actions.length);
+  // Dots remaining available (Active survivors - Played this turn)
+  const remainingCount = Math.max(0, activePopulation - actions.length);
+  
+  // Calculate percentage of players active
+  const healthPercent = totalPopulation > 0 ? (activePopulation / totalPopulation) * 100 : 0;
 
   return (
-    <div className={`flex flex-col min-h-[300px] sm:h-full border-b last:border-b-0 sm:border-b-0 lg:border-r lg:last:border-r-0 border-gray-200 ${styles.bg} bg-opacity-5`}>
+    <div className={`flex flex-col min-h-[350px] sm:h-full border-b last:border-b-0 sm:border-b-0 lg:border-r lg:last:border-r-0 border-gray-200 ${styles.bg} bg-opacity-5 relative`}>
       {/* Header */}
       <div className={`p-3 border-b-4 ${styles.border} ${styles.bg} bg-opacity-20`}>
-        <div className="flex justify-between items-center mb-1">
-          <h2 className={`text-xl font-bold ${styles.text}`}>{country}國</h2>
+        <div className="flex justify-between items-start mb-2">
+          <div>
+            <h2 className={`text-2xl font-black ${styles.text} leading-none`}>{country}</h2>
+            <div className="flex items-center gap-1 mt-1">
+               <Trophy size={14} className="text-yellow-600" />
+               <span className="font-bold text-gray-700 text-sm">{score} 分</span>
+            </div>
+          </div>
+          
           <button 
             onClick={() => onPopulationClick(country)}
-            className="bg-white px-2 py-0.5 rounded shadow text-sm font-mono font-bold hover:bg-gray-50 hover:scale-105 transition-all cursor-pointer border border-transparent hover:border-gray-300"
-            title="點擊修改人數"
+            className="flex flex-col items-end bg-white/80 px-2 py-1 rounded border border-transparent hover:border-gray-300 hover:shadow-sm transition-all cursor-pointer"
+            title="點擊修改總人數"
           >
-            {currentPopulation}人
+            <div className="text-xs font-bold text-gray-500 flex items-center gap-1">
+              總人數 <Users size={10}/>
+            </div>
+            <div className="text-lg font-mono font-bold leading-none">{totalPopulation}</div>
           </button>
+        </div>
+
+        {/* Health Bar (Active vs Total) */}
+        <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2 overflow-hidden border border-black/5">
+          <div 
+            className={`h-full transition-all duration-500 ${styles.bg} opacity-80`} 
+            style={{ width: `${healthPercent}%` }}
+          ></div>
+        </div>
+        
+        <div className="flex justify-between text-xs font-bold text-gray-600 mb-2 px-1">
+           <span className="flex items-center gap-1"><User size={12}/> 存活: {activePopulation}</span>
+           <span className={`${remainingCount === 0 ? 'text-green-600' : 'text-red-500'}`}>
+             {remainingCount > 0 ? `未表態: ${remainingCount}` : '全部已出'}
+           </span>
         </div>
         
         {/* Stats for this round */}
-        <div className="grid grid-cols-3 gap-1 text-center text-xs font-semibold mt-2">
-          <div className="bg-white/60 rounded px-1 py-0.5">A: {counts[Option.A]}</div>
-          <div className="bg-white/60 rounded px-1 py-0.5">B: {counts[Option.B]}</div>
+        <div className="grid grid-cols-3 gap-1 text-center text-xs font-bold">
+          <div className="bg-white/80 rounded px-1 py-1 border border-gray-100 shadow-sm">A: {counts[Option.A]}</div>
+          <div className="bg-white/80 rounded px-1 py-1 border border-gray-100 shadow-sm">B: {counts[Option.B]}</div>
           {optionsPerRound === 3 && (
-            <div className="bg-white/60 rounded px-1 py-0.5">C: {counts[Option.C]}</div>
+            <div className="bg-white/80 rounded px-1 py-1 border border-gray-100 shadow-sm">C: {counts[Option.C]}</div>
           )}
-        </div>
-        <div className="text-right text-xs text-gray-500 mt-1">
-          已出: {actions.length} / {playersPerRound}
         </div>
       </div>
 
       {/* Played Zone */}
-      <div className="flex-1 p-2 flex flex-col gap-2 overflow-y-auto min-h-[100px] border-b border-dashed border-gray-300">
-        <div className="text-xs text-gray-400 uppercase tracking-wider mb-1 text-center">已表態 ({actions.length})</div>
+      <div className="flex-1 p-2 flex flex-col gap-2 overflow-y-auto min-h-[100px] border-b border-dashed border-gray-300 transition-colors hover:bg-gray-50/50">
+        <div className="text-[10px] text-gray-400 uppercase tracking-wider mb-1 text-center font-bold">已表態 ({actions.length})</div>
         <div className="flex flex-wrap content-start gap-2 justify-center">
           {playedDots.map((action) => (
             <button
               key={action.id}
               onClick={() => onActionClick(action.id)}
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold shadow-md transition-transform transform hover:scale-110 hover:opacity-90 active:scale-95 cursor-pointer ${styles.dotActive}`}
+              className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold shadow-md transition-transform transform hover:scale-110 hover:opacity-90 active:scale-95 cursor-pointer ${styles.dotActive} text-sm`}
               title={`點擊移除 (已選 ${action.option})`}
             >
               {action.option}
@@ -83,17 +114,23 @@ export const CountryColumn: React.FC<CountryColumnProps> = ({
       </div>
 
       {/* Available Zone */}
-      <div className="flex-1 p-2 flex flex-col bg-white/50 min-h-[100px]">
-        <div className="text-xs text-gray-400 uppercase tracking-wider mb-1 text-center">未表態 ({remainingCount})</div>
+      <div className="flex-1 p-2 flex flex-col bg-white/60 min-h-[120px]">
+        <div className="text-[10px] text-gray-400 uppercase tracking-wider mb-1 text-center font-bold">未表態 ({remainingCount})</div>
         <div className="flex flex-wrap content-start gap-3 justify-center p-2">
           {Array.from({ length: remainingCount }).map((_, idx) => (
             <button
               key={`remaining-${idx}`}
               onClick={() => onDotClick(country)}
-              className={`w-6 h-6 rounded-full border-2 cursor-pointer hover:scale-125 transition-all hover:shadow-lg ${styles.dot} bg-white`}
+              className={`w-6 h-6 rounded-full border-2 cursor-pointer hover:scale-125 transition-all hover:shadow-lg hover:bg-gray-50 ${styles.dot} bg-white`}
               title="點擊設定選項"
             />
           ))}
+          {remainingCount === 0 && activePopulation === 0 && (
+            <span className="text-xs text-gray-400 italic py-4">此國已全滅</span>
+          )}
+          {remainingCount === 0 && activePopulation > 0 && (
+            <span className="text-xs text-gray-400 italic py-4">全員已就位</span>
+          )}
         </div>
       </div>
     </div>

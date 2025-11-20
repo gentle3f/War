@@ -1,3 +1,4 @@
+
 export enum Country {
   Gold = '金',
   Water = '水',
@@ -24,17 +25,10 @@ export interface PlayerRecord {
 
 export interface RoundData {
   roundNumber: number;
+  turnNumber: number;
   actions: PlayerRecord[];
   isCompleted: boolean;
   statsSnapshot?: Record<Country, number>; // Population at end of round
-}
-
-export interface CountryConfig {
-  name: Country;
-  colorBg: string;
-  colorText: string;
-  colorBorder: string;
-  total: number;
 }
 
 export interface GameState {
@@ -44,6 +38,7 @@ export interface GameState {
   targetCountry: Country;
   myCountry: Country; // To calculate "Self" damage
   populations: Record<Country, number>;
+  scores: Record<Country, number>;
   rounds: RoundData[];
   currentRoundIndex: number;
   notes: string;
